@@ -1,7 +1,9 @@
-# Large data files
-*.csv
-may21/
+# PySR intermediate outputs
 outputs/
+
+# Individual simulation CSVs inside may21 subfolders (too many, too large)
+# merged_may21_all.csv lives directly in may21/ so this pattern leaves it alone
+may21/*/*.csv
 
 # Python
 __pycache__/
