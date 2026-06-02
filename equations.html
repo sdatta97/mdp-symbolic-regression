@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Rational Fraction Equations for f</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style>
+  body { font-family: Georgia, serif; background: #fff; padding: 30px 50px; max-width: 900px; margin: auto; }
+  h1 { font-size: 22px; color: #222; border-bottom: 2px solid #333; padding-bottom: 8px; }
+  h2 { font-size: 17px; color: #1a1a6e; margin-top: 30px; margin-bottom: 6px; }
+  .r2 { font-size: 14px; color: #444; margin-bottom: 10px; font-style: italic; }
+  .eq { background: #f8f8f8; border-left: 4px solid #4a90d9; padding: 14px 20px; margin: 10px 0 18px 0; border-radius: 4px; font-size: 16px; }
+  .best { border-left: 4px solid #27ae60; background: #f0fff4; }
+  .tag { display: inline-block; background: #27ae60; color: white; font-size: 12px; padding: 2px 7px; border-radius: 3px; margin-left: 8px; vertical-align: middle; }
+  .pattern { background: #fffbe6; border-left: 4px solid #f0a500; padding: 14px 20px; margin: 20px 0; border-radius: 4px; }
+  table { border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+  th { background: #eee; padding: 6px 14px; border: 1px solid #ccc; }
+  td { padding: 5px 14px; border: 1px solid #ddd; text-align: center; }
+  .header-note { font-size: 14px; color: #555; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Rational Fraction Expressions for \(f\) &nbsp;—&nbsp; \(r = p_1/p_2 = \mu/(\gamma + f)\)</h1>
+
+<p class="header-note">
+  All expressions below satisfy the sum constraint \(p_1 + p_2 = S = \tfrac{\lambda}{\gamma}e^{-\lambda/\gamma}\) <em>exactly</em>.
+  Probabilities: \(p_1 = S\cdot r/(1+r)\), \(p_2 = S/(1+r)\).
+  Operators restricted to \(\{+,\,-,\,\times,\,\div,\,x^2\}\) only.
+</p>
+
+<!-- Baseline -->
+<h2>Baseline &nbsp; \(f = 0\)</h2>
+<div class="r2">R²(p₁) = 0.984939 &nbsp;|&nbsp; R²(p₂) = 0.993434</div>
+<div class="eq">$$r = \frac{\mu}{\gamma}$$</div>
+
+<!-- c=4 -->
+<h2>Complexity 4</h2>
+<div class="r2">R²(p₁) = 0.997360 &nbsp;|&nbsp; R²(p₂) = 0.998846</div>
+<div class="eq">$$f = 0.00155\,\lambda^2$$</div>
+
+<!-- c=5 -->
+<h2>Complexity 5</h2>
+<div class="r2">R²(p₁) = 0.997236 &nbsp;|&nbsp; R²(p₂) = 0.998791</div>
+<div class="eq">$$f = \frac{27.5\,\lambda}{\mu}$$</div>
+
+<!-- c=9 -->
+<h2>Complexity 9</h2>
+<div class="r2">R²(p₁) = 0.997137 &nbsp;|&nbsp; R²(p₂) = 0.998749</div>
+<div class="eq">$$f = \frac{\lambda\!\left(\dfrac{\lambda}{\gamma} + 25.72\right)}{\mu}$$</div>
+
+<!-- c=11 -->
+<h2>Complexity 11</h2>
+<div class="r2">R²(p₁) = 0.997932 &nbsp;|&nbsp; R²(p₂) = 0.999096</div>
+<div class="eq">$$f = \frac{\lambda\,(\lambda + 834)}{37.41\,\mu + \gamma}$$</div>
+
+<!-- c=19 -->
+<h2>Complexity 19</h2>
+<div class="r2">R²(p₁) = 0.999835 &nbsp;|&nbsp; R²(p₂) = 0.999928</div>
+<div class="eq">
+$$f = \lambda\cdot\left[\frac{4.803\,(\lambda - 3.378\,\mu)}{\mu\,(\gamma + 23.84)} + \frac{11.271}{\mu} + 0.253\right]$$
+</div>
+
+<!-- c=21 -->
+<h2>Complexity 21</h2>
+<div class="r2">R²(p₁) = 0.999854 &nbsp;|&nbsp; R²(p₂) = 0.999936</div>
+<div class="eq">
+$$f = \lambda\cdot\left[\frac{4.848\,(\lambda - 3.404\,\mu)}{\mu\,(\gamma + 23.36)} + \frac{11.399}{\mu} + 0.247\right] + 1.051$$
+</div>
+
+<!-- c=23 -->
+<h2>Complexity 23</h2>
+<div class="r2">R²(p₁) = 0.999901 &nbsp;|&nbsp; R²(p₂) = 0.999956</div>
+<div class="eq best">
+$$f = \lambda\cdot\left[\frac{\dfrac{2.837\,\lambda}{\gamma+13.75} + 0.311\,\mu}{\mu - 18.64} - \frac{21.877}{\gamma + 36.63}\right]$$
+</div>
+
+<!-- c=25 -->
+<h2>Complexity 25 <span class="tag">Best</span></h2>
+<div class="r2">R²(p₁) = 0.999922 &nbsp;|&nbsp; R²(p₂) = 0.999966</div>
+<div class="eq best">
+$$f = \lambda\cdot\left[\frac{\dfrac{3.010\,\lambda}{\gamma+\mu-32.54} + 0.321\,\mu}{\mu - 17.66} - \frac{22.746}{\gamma + 44.54}\right]$$
+</div>
+
+<!-- c=27 -->
+<h2>Complexity 27</h2>
+<div class="r2">R²(p₁) = 0.999922 &nbsp;|&nbsp; R²(p₂) = 0.999965</div>
+<div class="eq">
+$$f = (\lambda + 2.03)\cdot\left[\frac{\dfrac{3.103\,\lambda}{\gamma+\mu-30.91} + 0.320\,\mu}{\mu - 17.49} - \frac{23.619}{\gamma + 46.92}\right]$$
+</div>
+
+<!-- c=29 -->
+<h2>Complexity 29</h2>
+<div class="r2">R²(p₁) = 0.999877 &nbsp;|&nbsp; R²(p₂) = 0.999946</div>
+<div class="eq">
+$$f = \lambda\cdot\left[\frac{0.336\!\left(\mu - 1.887 + \dfrac{10.879\,\lambda}{\gamma + \lambda/14.92}\right)}{\mu - 16.92} - \frac{25.322}{\gamma + 36.79}\right]$$
+</div>
+
+<!-- Pattern -->
+<h2>Unified skeleton (c = 23 – 27)</h2>
+<div class="pattern">
+$$f = \lambda\cdot\Bigg[\underbrace{\dfrac{A\,\lambda\,/\,D(\gamma,\mu) \;+\; B\,\mu}{\mu - C_1}}_{\text{Padé correction}} \;-\; \underbrace{\dfrac{E}{\gamma + C_2}}_{\text{offset}}\Bigg]$$
+
+<br>
+<table>
+  <tr><th>c</th><th>\(A\)</th><th>\(D(\gamma,\mu)\)</th><th>\(B\)</th><th>\(C_1\)</th><th>\(E\)</th><th>\(C_2\)</th></tr>
+  <tr><td>23</td><td>2.837</td><td>\(\gamma+13.75\)</td><td>0.311</td><td>18.64</td><td>21.877</td><td>36.63</td></tr>
+  <tr><td>25</td><td>3.010</td><td>\(\gamma+\mu-32.54\)</td><td>0.321</td><td>17.66</td><td>22.746</td><td>44.54</td></tr>
+  <tr><td>27</td><td>3.103</td><td>\(\gamma+\mu-30.91\)</td><td>0.320</td><td>17.49</td><td>23.619</td><td>46.92</td></tr>
+</table>
+</div>
+
+</body>
+</html>
