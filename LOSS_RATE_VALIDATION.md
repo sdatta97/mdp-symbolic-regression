@@ -44,8 +44,9 @@ precision). Compared against all 6994 rows:
 
 | Model | R² vs `avg_packet_loss_rate` |
 |---|---|
-| **SBI literal formula** (PDF, `λ − μ(1 − Σ)`) | **−147.2** ❌ |
-| **SBI corrected** (`λ − μ(1 − P∧ − Σ)`) | **−17.6** ❌ |
+| **SBI literal formula** (Response 1, `λ − μ(1 − Σ)`) | **−147.2** ❌ |
+| **SBI corrected** (`λ − μ(1 − P∧ − Σ)`, spine via `R₁`) | **−17.6** ❌ |
+| **SBI Response 2** (`P₀ = λ/(μ+γ+(λ/2)(1−β₀(2)))·e^(−λ/γ)`) | **−32.0** ❌ |
 | Competing exponentials `γ/(μ+γ)` | 0.844 |
 | Load-aware `γ/(μ+γ) + μ/(μ+γ)·max(0, 1−μ/λ)` | **0.972** ✅ |
 
@@ -127,6 +128,52 @@ P(server busy)), independent of how the loss rate is scaled.
 
 ---
 
+## 2b. Response 2 variant: closed-form spine anchor
+
+A later revision of `Matrix.pdf` ("Response 2") keeps the corrected identity
+`Loss Rate = λ − μ(1 − P∧ − Σ P_{0^(n)})` but replaces the spine anchor. Instead
+of `P_{0^(1)} = P∧·R₁` with `R₁ = λ/(γ + λ(1−β₀(1)))`, it derives a closed form for
+the first idle state from the Layer-1 boundary balance:
+
+$$
+P_0 = \frac{\lambda}{\mu + \gamma + \frac{\lambda}{2}\left(1-\beta_0(2)\right)}\, e^{-\lambda/\gamma},
+\qquad
+P_{0^{(n)}} = P_0 \prod_{k=2}^{n} \frac{\lambda}{k\gamma + \lambda(1-\beta_0(k))}.
+$$
+
+The key structural change: **μ now appears in the P₀ denominator.**
+
+**Implementation check.** The β₀(n) recurrence reproduces the PDF's own worked
+example exactly — for λ=1.5, μ=3.0, γ=1.0 it gives β₀(2) = 0.184470 (matching
+p. 6) at truncation depths M = 6, 15, and 100, confirming the implementation is
+faithful.
+
+**Result: R² = −32.0** — *worse* than the −17.6 of the previous corrected variant.
+
+Because μ ≈ 50 now sits in the P₀ denominator, P₀ shrinks by ≈ 14× (0.21 → 0.016),
+so the spine sum Σ becomes *smaller*. But the validation shows the spine needs to
+be *larger*, not smaller. The "needed Σ" below is back-solved from the
+model-independent balance `P∧ + Σ = 1 − λ(1−loss)/μ`:
+
+| λ | μ | γ | Σ (Response 2) | Σ needed | gap |
+|---|---|---|---|---|---|
+| 1.5 | 50 | 2.5  | 0.0198 | 0.4226 | 21× |
+| 1.5 | 50 | 10.0 | 0.0229 | 0.1143 | 5× |
+| 1.5 | 50 | 25.0 | 0.0193 | 0.0383 | 2× |
+
+Response 2 pushes the spine sum *further* from its target, so loss rates become
+more negative (e.g. −13.4 where the simulation gives 0.048).
+
+**Why no spine anchor can fix this.** At utilisation ρ = λ/μ = 0.03 the system is
+idle ≈ 97% of the time, so `P∧ + Σ_idle` must reach ≈ 0.97. The empty state alone
+gives `P∧ = e^(−0.6) = 0.549`; the remaining ≈ 0.42 of idle mass lives in
+**mixed-idle states** (`01`, `001`, `010`, … — head-bit 0, server idle). The
+pure-zero spine `0^(n)` is a vanishing subset of the idle states and cannot carry
+that mass *regardless of how P₀ is anchored*. Refining P₀ rearranges a term that is
+already ≈ 20× too small.
+
+---
+
 ## 3. What the data actually shows
 
 The loss is governed by **competing exponentials at the queue head** — the head
@@ -180,8 +227,9 @@ a natural target for symbolic regression.
    written, **does not reproduce** the simulated loss rates (R² = −147, with
    unphysical negative values). Subtracting the empty-state mass P∧ from the
    throughput term (`λ − μ(1 − P∧ − Σ)`) improves this to R² = −17.6 but still
-   fails. The claimed `R² = 1.0` is not supported by the simulation data in
-   `merged_all_infinite_buffer.csv`.
+   fails; the **Response 2** closed-form spine anchor is worse still (R² = −32.0,
+   it shrinks the spine sum in the wrong direction). The claimed `R² = 1.0` is not
+   supported by the simulation data in `merged_all_infinite_buffer.csv`.
 
 2. The failure is structural, not a normalisation artefact: the spine term
    `1 − P∧ − Σ P_{0^(n)}` is conflated with P(server busy), yet a direct check

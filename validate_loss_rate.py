@@ -44,6 +44,40 @@ def sbi_loss_rate(lam, mu, gam, Nmax=NMAX):
     return loss_rate, spine_sum, Pwedge
 
 
+def sbi_loss_rate_response2(lam, mu, gam, Nmax=NMAX):
+    """Response 2 variant of the SBI formula.
+
+    Differs only in the spine anchor: instead of P_{0^(1)} = P∧·R₁ with
+    R₁ = λ/(γ+λ(1−β₀(1))), Response 2 sets the first idle state to
+
+        P₀ = λ / (µ + γ + (λ/2)(1 − β₀(2))) · e^(−λ/γ)
+
+    (note µ now enters the denominator), with the step-down product
+    starting at k = 2:  P_{0^(n)} = P₀ · ∏_{k=2}^n R_k.
+    """
+    # --- β₀(n) backward recurrence (identical to Response 1) ---
+    beta = np.empty(Nmax + 2)
+    beta[Nmax + 1] = gam / (mu + Nmax * gam)
+    for n in range(Nmax, 0, -1):
+        beta[n] = gam / (mu + n * gam + (lam / (n + 1)) * (1.0 - beta[n + 1]))
+
+    Pwedge = np.exp(-lam / gam)
+    A  = lam / (mu + gam + (lam / 2.0) * (1.0 - beta[2]))   # P₀ / P∧
+    P0 = Pwedge * A
+    spine_sum = P0                                           # n = 1 term
+    prod = 1.0
+    for n in range(2, Nmax + 1):
+        Rn = lam / (n * gam + lam * (1.0 - beta[n]))         # k ≥ 2 step-down
+        prod *= Rn
+        term = P0 * prod
+        spine_sum += term
+        if term < 1e-16 and n > 5:
+            break
+
+    loss_rate = lam - mu * (1.0 - Pwedge - spine_sum)
+    return loss_rate, spine_sum, Pwedge
+
+
 # ─── Load combined CSV ───────────────────────────────────────────────────────
 df = pd.read_csv("/Users/sdatta/Downloads/Claude/merged_all_infinite_buffer.csv")
 df = df[pd.to_numeric(df["lambda"], errors="coerce").notna()].copy()
