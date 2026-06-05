@@ -1,0 +1,150 @@
+# Validation Note: SBI Loss-Rate Formula vs. Simulated Loss Rates
+
+**Author:** Analysis of `Matrix.pdf` (Scalar Boundary Induction proof)
+**Data:** `merged_all_infinite_buffer.csv` — 6994 simulation rows, μ ∈ {50, 100, 125, 150, 175, 200}
+**Script:** `validate_loss_rate.py`
+**Date:** June 2026
+
+---
+
+## 1. The formula under test
+
+`Matrix.pdf` derives a scalar (non-matrix) closed form for the steady-state loss
+rate of the state-dependent queue via **Scalar Boundary Induction (SBI)**. The
+headline identity is
+
+$$
+\text{Loss Rate} \;=\; \lambda - \mu\left(1 - \sum_{n=1}^{\infty} P_{0^{(n)}}\right)
+$$
+
+supported by the scalar spine machinery
+
+$$
+P_\wedge = e^{-\lambda/\gamma}, \qquad
+\beta_0(n) = \frac{\gamma}{\mu + n\gamma + \frac{\lambda}{n+1}\left(1-\beta_0(n+1)\right)},
+$$
+$$
+R_n = \frac{\lambda}{n\gamma + \lambda\left(1-\beta_0(n)\right)}, \qquad
+P_{0^{(n)}} = P_\wedge \prod_{k=1}^{n} R_k .
+$$
+
+The PDF claims this reproduces the simulation metrics with **R² = 1.0**.
+
+The simulated column `avg_packet_loss_rate` is a **fraction** in `[0, 1]`, so the
+comparison target is the normalised loss fraction
+`LossRate / λ = 1 − (μ/λ)(1 − Σ P_{0^(n)})`.
+
+---
+
+## 2. Result: the literal formula does not validate
+
+The recurrence was implemented faithfully (backward iteration from depth
+`N = 4000` at the tail limit `β₀ → γ/(μ+nγ)`; spine sum truncated at machine
+precision). Compared against all 6994 rows:
+
+| Model | R² vs `avg_packet_loss_rate` |
+|---|---|
+| **SBI literal formula** (PDF) | **−147.2** ❌ |
+| Competing exponentials `γ/(μ+γ)` | 0.844 |
+| Load-aware `γ/(μ+γ) + μ/(μ+γ)·max(0, 1−μ/λ)` | **0.972** ✅ |
+
+The SBI formula produces **unphysical negative loss rates**. Representative rows:
+
+| λ | μ | γ | simulated | SBI formula |
+|---|---|---|---|---|
+| 1.5 | 50 | 2.5  | 0.0478 | **−23.41** |
+| 1.5 | 50 | 10.0 | 0.1675 | **−28.23** |
+| 1.5 | 50 | 70.0 | 0.5847 | **−31.63** |
+
+### Why it fails
+
+The term `μ(1 − Σ P_{0^(n)})` is intended to be the system throughput. With
+μ = 50, λ = 1.5, the computed `1 − Σspine ≈ 0.73`, giving an implied throughput of
+
+$$
+50 \times 0.73 = 36.6 \;\gg\; \lambda = 1.5 .
+$$
+
+A throughput exceeding the arrival rate by **24×** is impossible — in steady state
+throughput ≤ arrivals. The conceptual error:
+
+> `Σ_{n≥1} P_{0^(n)}` sums only the **pure-zero spine** (states `0, 00, 000, …`).
+> But `1 − (pure spine)` is **not** P(server busy). The server is idle on *every*
+> string with head-bit 0 — including the empty state and all *mixed-idle* states
+> (`01`, `001`, `010`, …). These are silently counted as "busy," inflating the
+> throughput term far beyond λ.
+
+For the identity to hold, `Σ` would need to capture ≈ 97% of probability mass
+(the true server-idle fraction at utilisation ρ = λ/μ = 0.03); the pure spine
+captures only ≈ 27%.
+
+---
+
+## 3. What the data actually shows
+
+The loss is governed by **competing exponentials at the queue head** — the head
+packet is either *served* (rate μ) or *decays/expires* (rate γ):
+
+$$
+\boxed{\;\text{loss} \approx \dfrac{\gamma}{\mu+\gamma}, \qquad
+\text{served} \approx \dfrac{\mu}{\mu+\gamma}\;}
+$$
+
+On the light-load subset (λ < μ, 3366 rows):
+
+- `loss` vs `γ/(μ+γ)` : **R² = 0.984**
+- `served = 1−loss` vs `μ/(μ+γ)` : **R² = 0.984**
+
+Per-μ accuracy is even higher (the global R² is dragged down only by the heavily
+overloaded μ = 50 rows):
+
+| μ | n | R²(`γ/(μ+γ)`) | mean abs err |
+|---|---|---|---|
+| 50  | 4424 | 0.590 | 0.0898 |
+| 100 | 879  | 0.986 | 0.0194 |
+| **125** | 193 | **0.9994** | **0.0037** |
+| 150 | 379  | 0.997 | 0.0099 |
+| 175 | 474  | 0.986 | 0.0215 |
+| 200 | 645  | 0.969 | 0.0331 |
+
+**Connection to prior work.** `γ/(μ+γ)` is exactly the *γ-share* found in the
+ratio analysis (`p₂ = S·γ/(μ+γ)`, `r = p₁/p₂ ≈ μ/γ`). The same μ-vs-γ competition
+that sets the state-probability ratio also sets the loss fraction.
+
+### Heavy-traffic correction
+
+`γ/(μ+γ)` is the **light-load limit**. When λ > μ the queue saturates and overload
+adds losses on top. The simple additive correction
+
+$$
+\text{loss} = \frac{\gamma}{\mu+\gamma} + \frac{\mu}{\mu+\gamma}\,\max\!\left(0,\; 1 - \frac{\mu}{\lambda}\right)
+$$
+
+raises the global fit to **R² = 0.972** and is exact in both limits (light load →
+`γ/(μ+γ)`; extreme overload → 1). The residual structure (μ = 50 group at R² =
+0.93) suggests a smoother λ-dependent crossover term remains to be identified —
+a natural target for symbolic regression.
+
+---
+
+## 4. Conclusion
+
+1. The **SBI continued-fraction formula** in `Matrix.pdf`, implemented exactly as
+   written, **does not reproduce** the simulated loss rates (R² = −147, with
+   unphysical negative values). The claimed `R² = 1.0` is not supported by the
+   simulation data in `merged_all_infinite_buffer.csv`.
+
+2. The failure is structural: the pure-zero spine sum `Σ P_{0^(n)}` is conflated
+   with P(server busy), so `μ(1 − Σ)` overstates throughput by more than an order
+   of magnitude.
+
+3. The simulated loss is well described by the **competing-exponential law
+   `loss = γ/(μ+γ)`** (R² = 0.984 at light load, 0.9994 at μ = 125), consistent
+   with the independently discovered ratio result `r ≈ μ/γ`. A one-term overload
+   correction extends this to R² = 0.972 across all traffic regimes.
+
+**Recommendation:** revisit the SBI derivation — specifically the identification
+of the throughput term and the `R_n` spine multiplier (its denominator
+`nγ + λ(1−β₀(n))` does not match the flux-balance relation
+`R_{n+1} = (1−β₀(n))·λ/(nγ)` implied by Phase II). The competing-exponential law
+provides a simpler, empirically validated alternative.
