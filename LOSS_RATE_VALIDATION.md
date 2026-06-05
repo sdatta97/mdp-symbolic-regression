@@ -44,7 +44,8 @@ precision). Compared against all 6994 rows:
 
 | Model | R² vs `avg_packet_loss_rate` |
 |---|---|
-| **SBI literal formula** (PDF) | **−147.2** ❌ |
+| **SBI literal formula** (PDF, `λ − μ(1 − Σ)`) | **−147.2** ❌ |
+| **SBI corrected** (`λ − μ(1 − P∧ − Σ)`) | **−17.6** ❌ |
 | Competing exponentials `γ/(μ+γ)` | 0.844 |
 | Load-aware `γ/(μ+γ) + μ/(μ+γ)·max(0, 1−μ/λ)` | **0.972** ✅ |
 
@@ -77,6 +78,52 @@ throughput ≤ arrivals. The conceptual error:
 For the identity to hold, `Σ` would need to capture ≈ 97% of probability mass
 (the true server-idle fraction at utilisation ρ = λ/μ = 0.03); the pure spine
 captures only ≈ 27%.
+
+---
+
+## 2a. Corrected variant: subtracting the empty state P∧
+
+A natural fix is to exclude the empty-state mass from the throughput term as well:
+
+$$
+\text{Loss Rate} = \lambda - \mu\left(1 - P_\wedge - \sum_{n=1}^{\infty} P_{0^{(n)}}\right).
+$$
+
+This improves the fit by roughly 8× (overall **R² = −147 → −17.6**, mean abs error
+1.20 → 0.45) but **still fails** — R² remains strongly negative in every μ group,
+and low-γ rows still give negative loss rates (e.g. λ=1.5, μ=50, γ=2.5 → −5.11).
+Worse, the correction overshoots at high γ:
+
+| λ | μ | γ | `1−P∧−Σ` | simulated | corrected SBI |
+|---|---|---|---|---|---|
+| 1.5 | 50 | 2.5  | 0.183  | 0.0478 | **−5.11** (still negative) |
+| 1.5 | 50 | 10.0 | 0.016  | 0.1675 | 0.464 (2.8× over) |
+| 1.5 | 50 | 25.0 | 0.0023 | 0.3350 | 0.924 (over) |
+| 1.5 | 50 | 70.0 | 0.0002 | 0.5847 | 0.994 (saturates) |
+
+### Normalisation is not the cause
+
+The comparison divides the absolute SBI loss rate by λ to match the simulated
+*fraction* — i.e. `loss = 1 − (μ/λ)(1 − P∧ − Σ)`, the standard loss-system form.
+This is the correct normalisation, and it is **not** what makes the formula fail.
+A division by the positive constant λ cannot flip a negative absolute rate
+positive, nor fix a γ-dependent error.
+
+The decisive check compares the SBI busy-probability term `(1 − P∧ − Σ)` against
+the **true, model-independent** server-busy probability, obtained purely from the
+simulated loss via flow balance `throughput = μ·P(busy) = λ(1 − loss)`:
+
+| λ | μ | γ | true P(busy) = λ(1−loss)/μ | SBI `1 − P∧ − Σ` | ratio |
+|---|---|---|---|---|---|
+| 1.5 | 50 | 2.5  | 0.0286 | 0.1834 | **6.4×** |
+| 1.5 | 50 | 10.0 | 0.0250 | 0.0161 | 0.6× |
+| 1.5 | 50 | 25.0 | 0.0200 | 0.0023 | **0.1×** |
+| 1.5 | 50 | 70.0 | 0.0125 | 0.0002 | **0.02×** |
+
+If these two columns matched, the formula would validate at *any* consistent
+normalisation. Instead they diverge by 6× to 60×, and in **opposite directions**
+as γ varies — confirming the failure is structural (the spine term is not
+P(server busy)), independent of how the loss rate is scaled.
 
 ---
 
@@ -131,12 +178,16 @@ a natural target for symbolic regression.
 
 1. The **SBI continued-fraction formula** in `Matrix.pdf`, implemented exactly as
    written, **does not reproduce** the simulated loss rates (R² = −147, with
-   unphysical negative values). The claimed `R² = 1.0` is not supported by the
-   simulation data in `merged_all_infinite_buffer.csv`.
+   unphysical negative values). Subtracting the empty-state mass P∧ from the
+   throughput term (`λ − μ(1 − P∧ − Σ)`) improves this to R² = −17.6 but still
+   fails. The claimed `R² = 1.0` is not supported by the simulation data in
+   `merged_all_infinite_buffer.csv`.
 
-2. The failure is structural: the pure-zero spine sum `Σ P_{0^(n)}` is conflated
-   with P(server busy), so `μ(1 − Σ)` overstates throughput by more than an order
-   of magnitude.
+2. The failure is structural, not a normalisation artefact: the spine term
+   `1 − P∧ − Σ P_{0^(n)}` is conflated with P(server busy), yet a direct check
+   against the model-independent true P(busy) = λ(1−loss)/μ shows the two diverge
+   by 6×–60× in opposite directions as γ varies. No rescaling of the loss rate
+   can repair a γ-dependent error of this kind.
 
 3. The simulated loss is well described by the **competing-exponential law
    `loss = γ/(μ+γ)`** (R² = 0.984 at light load, 0.9994 at μ = 125), consistent
