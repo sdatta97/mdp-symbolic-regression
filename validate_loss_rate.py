@@ -1,12 +1,12 @@
 """
 Validate the Matrix.pdf (SBI) loss-rate formula against simulated loss rates.
 
-PDF formula (Scalar Boundary Induction):
+PDF formula (Scalar Boundary Induction), with corrected throughput term:
   P∧        = exp(−λ/γ)                                   empty-queue boundary
   β₀(n)     = γ / (µ + nγ + (λ/(n+1))·(1 − β₀(n+1)))      branching recurrence
   R_n       = λ / (nγ + λ·(1 − β₀(n)))                    spine multiplier
   P_{0^(n)} = P∧ · ∏_{k=1}^n R_k                          idle-spine probs
-  LossRate  = λ − µ·(1 − Σ_{n=1}^∞ P_{0^(n)})            absolute loss rate
+  LossRate  = λ − µ·(1 − P∧ − Σ_{n=1}^∞ P_{0^(n)})       absolute loss rate
 
 Simulated column avg_packet_loss_rate ∈ [0,1] is a *fraction*, so compare to
   loss_fraction = LossRate / λ = 1 − (µ/λ)·(1 − Σ_{n≥1} P_{0^(n)})
@@ -39,7 +39,8 @@ def sbi_loss_rate(lam, mu, gam, Nmax=NMAX):
         if term < 1e-16 and n > 5:             # converged
             break
 
-    loss_rate = lam - mu * (1.0 - spine_sum)
+    # Corrected identity: throughput term excludes the empty-state mass P∧ too
+    loss_rate = lam - mu * (1.0 - Pwedge - spine_sum)
     return loss_rate, spine_sum, Pwedge
 
 
